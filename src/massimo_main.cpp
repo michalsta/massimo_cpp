@@ -137,7 +137,6 @@ void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, co
 namespace nb = nanobind;
 
 NB_MODULE(massimo_cpp_ext, m) {
-    m.def("hello", [](){ std::cout << "hello!\n"; });
     m.def("Massimize", &Massimize, "Function to process isotopic data");
     nb::class_<ProblematicInput>(m, "ProblematicInput")
         .def(nb::init<size_t, size_t, double, std::vector<size_t> const &, std::vector<double> const &,

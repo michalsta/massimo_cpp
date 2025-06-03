@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import massimo_cpp
-massimo_cpp.hello()
+
+
 PI = massimo_cpp.ProblematicInput(
     100000,
     27,
