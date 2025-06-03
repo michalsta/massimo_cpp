@@ -10,4 +10,8 @@ nanobind_add_module(massimo_cpp_ext
     NB_STATIC
     src/massimo_main.cpp)
 
+    target_include_directories(massimo_cpp_ext
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
 install(TARGETS massimo_cpp_ext LIBRARY DESTINATION massimo_cpp)
