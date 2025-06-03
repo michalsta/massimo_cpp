@@ -3,7 +3,7 @@
 import massimo_cpp
 from mmapped_df import open_dataset
 import numpy as np
-
+import shutil
 
 def get_probs_arr(n):
     a = np.random.rand(n)
@@ -24,11 +24,12 @@ def test_1():
         [0.1, 0.2, 0.3, 0.4]
     )
 
-    massimo_cpp.Massimize([PI], 1, r"0.bin")
+    shutil.rmtree(r"test1.mappet", ignore_errors=True)
+    massimo_cpp.Massimize([PI], 1, r"test1.mmappet")
 
-    ds = open_dataset(r".")
+    ds = open_dataset(r"test1.mmappet")
     print(ds)
-    assert sum(ds.data) == 100_000
+    assert sum(ds.intensity) == 100_000
 
 def test_2():
     PI = massimo_cpp.ProblematicInput(
@@ -43,8 +44,14 @@ def test_2():
         [0.1, 0.2, 0.3, 0.4]
     )
 
-    massimo_cpp.Massimize([PI]*1000, 20, r"0.bin")
+    shutil.rmtree(r"test2.mmappet", ignore_errors=True)
+    massimo_cpp.Massimize([PI]*1000, 20, r"test2.mmappet")
 
-    ds = open_dataset(r".")
+    ds = open_dataset(r"test2.mmappet")
     print(ds)
-    assert sum(ds.data) == 100000000
+    assert sum(ds.intensity) == 100000000
+
+if __name__ == "__main__":
+    test_1()
+    test_2()
+    print("All tests passed.")

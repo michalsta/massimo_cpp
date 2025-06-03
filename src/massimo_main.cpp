@@ -12,6 +12,7 @@
 #include <mutex>
 #include <array>
 #include <cstdlib>
+#include <filesystem>
 
 
 
@@ -54,7 +55,7 @@ public:
 void worker(std::atomic<size_t> &n_processed, 
             const std::vector<ProblematicInput> &inputs, 
             std::mutex &out_file_lock, 
-            std::fstream &out, 
+            std::array<std::ofstream, 5> &out_files,
             size_t thread_id) 
 {
     while(n_processed < inputs.size())
@@ -76,40 +77,65 @@ void worker(std::atomic<size_t> &n_processed,
             input.scan_probs.data(),
             input.tof_probs.data()
         };
+        std::array<int, 3> configuration;
 
         IsoSpec::Iso iso(3, isotopeNumbers.data(), atomCounts.data(), isotopeMasses.data(), isotopeProbabilities.data());
         IsoSpec::IsoStochasticGenerator generator(std::move(iso), input.N, input.precision);
 
         // TODO: we can replace std::vector here by preallocated memory of size N
-        std::vector<double> masses;
-        masses.reserve(input.N_minimal);
-        std::vector<double> probabilities;
-        probabilities.reserve(input.N_minimal);
+        std::vector<uint32_t> ClusterIds;
+        std::vector<uint32_t> frame_indices;
+        std::vector<uint32_t> scan_indices;
+        std::vector<uint32_t> tof_indices;
+        std::vector<uint32_t> intensity;
 
-        while (generator.advanceToNextConfiguration()) {
-            masses.push_back(generator.mass());
-            probabilities.push_back(generator.prob());
+        size_t total_confs = input.N;
+        while (generator.advanceToNextConfiguration() and total_confs >= input.N_minimal) {
+            ClusterIds.push_back(static_cast<uint32_t>(index));
+            const size_t curr_intensity = static_cast<size_t>(generator.prob());
+            intensity.push_back(curr_intensity);
+            total_confs -= curr_intensity;
+            generator.get_conf_signature(configuration.data());
+            frame_indices.push_back(static_cast<uint32_t>(input.frame_indices[configuration[0]]));
+            scan_indices.push_back(static_cast<uint32_t>(input.scan_indices[configuration[1]]));
+            tof_indices.push_back(static_cast<uint32_t>(input.tof_indices[configuration[2]]));
         }
         // Write results to the output file
         {
             std::lock_guard<std::mutex> lock(out_file_lock);
             //out.write(reinterpret_cast<const char*>(masses.data()), masses.size() * sizeof(double));
-            out.write(reinterpret_cast<const char*>(probabilities.data()), probabilities.size() * sizeof(double));
+            //out.write(reinterpret_cast<const char*>(probabilities.data()), probabilities.size() * sizeof(double));
+            out_files[0].write(reinterpret_cast<const char*>(ClusterIds.data()), ClusterIds.size() * sizeof(uint32_t));
+            out_files[1].write(reinterpret_cast<const char*>(frame_indices.data()), frame_indices.size() * sizeof(uint32_t));
+            out_files[2].write(reinterpret_cast<const char*>(scan_indices.data()), scan_indices.size() * sizeof(uint32_t));
+            out_files[3].write(reinterpret_cast<const char*>(tof_indices.data()), tof_indices.size() * sizeof(uint32_t));
+            out_files[4].write(reinterpret_cast<const char*>(intensity.data()), intensity.size() * sizeof(uint32_t));
         }
-
-
-
         free(isotopeMasses[0]);
         free(isotopeMasses[1]);
         free(isotopeMasses[2]);
     }
 }
 
-void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, const std::string &output_path) 
+void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, const std::string &output_dir_path) 
 {
-    std::fstream out(output_path, std::ios::out | std::ios::binary);
-    if (!out.is_open()) {
-        throw std::runtime_error("Failed to open output file: " + output_path);
+    std::filesystem::path output_dir(output_dir_path);
+    std::filesystem::create_directory(output_dir);
+    {
+        std::ofstream schema_file;
+        schema_file.exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        schema_file.open(output_dir / "schema.txt");
+        schema_file << "uint32 ClusterID" << std::endl;
+        schema_file << "uint32 frame" << std::endl;
+        schema_file << "uint32 scan" << std::endl;
+        schema_file << "uint32 tof" << std::endl;
+        schema_file << "uint32 intensity" << std::endl;
+    }
+    std::array<std::ofstream, 5> out_files;
+    for(size_t ii = 0; ii < 5; ++ii)
+    {
+        out_files[ii].exceptions(std::ofstream::failbit | std::ofstream::badbit);
+        out_files[ii].open(output_dir / (std::to_string(ii) + ".bin"), std::ios::binary);
     }
     
     std::mutex out_file_lock;
@@ -117,7 +143,7 @@ void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, co
     std::vector<std::thread> threads;
 
     for(size_t ii = 0; ii < n_threads; ++ii) {
-        threads.emplace_back(worker, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out), ii);
+        threads.emplace_back(worker, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii);
     }
 
     for(auto &thread : threads) {
@@ -125,8 +151,6 @@ void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, co
             thread.join();
         }
     }
-    out.close();
-    std::cout << "Processing completed. Output written to " << output_path << std::endl;
 }
         
 
