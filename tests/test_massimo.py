@@ -51,7 +51,24 @@ def test_2():
     print(ds)
     assert sum(ds.intensity) == 100000000
 
+def test_3():
+    PI = massimo_cpp.ProblematicInput(
+        100000,
+        27,
+        0.99,
+        np.arange(50, dtype=np.uint64).tolist(),
+        get_probs_arr(50),
+        np.arange(100, dtype=np.uint64).tolist(),
+        get_probs_arr(100),
+        np.arange(50, dtype=np.uint64).tolist(),
+        get_probs_arr(50),
+    )
+    #print(PI.to_cpp_string())
+    shutil.rmtree(r"test3.mmappet", ignore_errors=True)
+    massimo_cpp.Massimize([PI]*100_000, 13, r"test3.mmappet")
+
 if __name__ == "__main__":
     test_1()
     test_2()
+    test_3()
     print("All tests passed.")
