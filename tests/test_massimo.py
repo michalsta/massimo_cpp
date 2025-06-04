@@ -6,9 +6,10 @@ import numpy as np
 import shutil
 
 def get_probs_arr(n):
-    a = np.random.rand(n)
+    a = np.random.rand(n).astype(np.double)
     a /= a.sum()
-    return a
+    a *= 1.1
+    return a.tolist()
 
 
 def test_1():
@@ -36,12 +37,12 @@ def test_2():
         100000,
         27,
         0.99,
-        [1,2],
-        [0.9, 0.1],
-        [34, 35, 36, 37, 38],
-        [0.1, 0.2, 0.3, 0.2, 0.2],
-        [1,5,6,7],
-        [0.1, 0.2, 0.3, 0.4]
+        np.array([1,2]),
+        np.array([0.9, 0.1]),
+        np.array([34, 35, 36, 37, 38]),
+        np.array([0.1, 0.2, 0.3, 0.2, 0.2]),
+        np.array([1,5,6,7]),
+        np.array([0.1, 0.2, 0.3, 0.4]),
     )
 
     shutil.rmtree(r"test2.mmappet", ignore_errors=True)
