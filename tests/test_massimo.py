@@ -66,7 +66,7 @@ def test_3():
     )
     #print(PI.to_cpp_string())
     shutil.rmtree(r"test3.mmappet", ignore_errors=True)
-    massimo_cpp.Massimize([PI]*1, r"test3.mmappet", 13)
+    massimo_cpp.Massimize([PI]*1, r"test3.mmappet", 13, 0.0)
     ds = open_dataset(r"test3.mmappet")
     print(ds)
 

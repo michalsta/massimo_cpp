@@ -156,10 +156,12 @@ void worker(std::atomic<size_t> &n_processed,
 
         size_t total_confs = input.N;
         while (generator.advanceToNextConfiguration() and total_confs >= input.N_minimal) {
-            ClusterIds.push_back(static_cast<uint32_t>(index));
             const size_t curr_intensity = static_cast<size_t>(generator.prob());
-            intensity.push_back(curr_intensity);
             total_confs -= curr_intensity;
+            if (curr_intensity < input.N_minimal)
+                continue;
+            ClusterIds.push_back(static_cast<uint32_t>(index));
+            intensity.push_back(curr_intensity);
             generator.get_conf_signature(configuration.get());
             frame_indices.push_back(find_one(std::span<int>(configuration.get(), input.frame_indices.size())));
             scan_indices.push_back(find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size())));
