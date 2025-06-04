@@ -119,7 +119,8 @@ void worker(std::atomic<size_t> &n_processed,
             const std::vector<ProblematicInput> &inputs,
             std::mutex &out_file_lock,
             std::array<std::ofstream, 5> &out_files,
-            size_t thread_id)
+            size_t thread_id,
+            double beta_bias)
 {
     while(n_processed < inputs.size())
     {
@@ -143,7 +144,7 @@ void worker(std::atomic<size_t> &n_processed,
         std::unique_ptr<int[]> configuration = std::make_unique<int[]>(input.frame_indices.size() + input.scan_indices.size() + input.tof_indices.size());
 
         IsoSpec::Iso iso(3, isotopeNumbers.data(), atomCounts.data(), isotopeMasses.data(), isotopeProbabilities.data());
-        IsoSpec::IsoStochasticGenerator generator(std::move(iso), input.N, input.precision);
+        IsoSpec::IsoStochasticGenerator generator(std::move(iso), input.N, input.precision, beta_bias);
 
 
         // TODO: we can replace std::vector here by preallocated memory of size N
@@ -181,7 +182,7 @@ void worker(std::atomic<size_t> &n_processed,
     }
 }
 
-void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, const std::string &output_dir_path)
+void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, const std::string &output_dir_path, double beta_bias = 5.0)
 {
     std::filesystem::path output_dir(output_dir_path);
     std::filesystem::create_directory(output_dir);
@@ -207,13 +208,13 @@ void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, co
     std::vector<std::thread> threads;
 
     if(n_threads == 0) {
-        worker(n_processed, inputs, out_file_lock, out_files, 0);
+        worker(n_processed, inputs, out_file_lock, out_files, 0, beta_bias);
         return;
     }
 
 
     for(size_t ii = 0; ii < n_threads; ++ii) {
-        threads.emplace_back(worker, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii);
+        threads.emplace_back(worker, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii, beta_bias);
     }
 
     for(auto &thread : threads) {
