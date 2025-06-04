@@ -182,7 +182,7 @@ void worker(std::atomic<size_t> &n_processed,
     }
 }
 
-void Massimize(const std::vector<ProblematicInput> &inputs, size_t n_threads, const std::string &output_dir_path, double beta_bias = 5.0)
+void Massimize(const std::vector<ProblematicInput> &inputs, const std::string &output_dir_path, size_t n_threads, double beta_bias = 5.0)
 {
     std::filesystem::path output_dir(output_dir_path);
     std::filesystem::create_directory(output_dir);

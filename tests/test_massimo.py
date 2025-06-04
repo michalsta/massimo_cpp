@@ -26,7 +26,7 @@ def test_1():
     )
 
     shutil.rmtree(r"test1.mappet", ignore_errors=True)
-    massimo_cpp.Massimize([PI], 1, r"test1.mmappet")
+    massimo_cpp.Massimize([PI], r"test1.mmappet", 1)
 
     ds = open_dataset(r"test1.mmappet")
     print(ds)
@@ -46,7 +46,7 @@ def test_2():
     )
 
     shutil.rmtree(r"test2.mmappet", ignore_errors=True)
-    massimo_cpp.Massimize([PI]*1000, 20, r"test2.mmappet")
+    massimo_cpp.Massimize([PI]*1000, r"test2.mmappet", 20)
 
     ds = open_dataset(r"test2.mmappet")
     print(ds)
@@ -66,7 +66,9 @@ def test_3():
     )
     #print(PI.to_cpp_string())
     shutil.rmtree(r"test3.mmappet", ignore_errors=True)
-    massimo_cpp.Massimize([PI]*100_000, 13, r"test3.mmappet")
+    massimo_cpp.Massimize([PI]*1, r"test3.mmappet", 13)
+    ds = open_dataset(r"test3.mmappet")
+    print(ds)
 
 if __name__ == "__main__":
     test_1()
