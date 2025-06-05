@@ -2,7 +2,7 @@
 #include <nanobind/stl/vector.h>
 #include <nanobind/stl/string.h>
 //#include <IsoSpec++/isoSpec++.h>
-#include <massimo_cpp/massimo_impl.cpp>
+#include "massimo_cpp/massimo_impl.cpp"
 
 
 namespace nb = nanobind;

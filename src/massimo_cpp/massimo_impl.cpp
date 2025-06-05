@@ -1,4 +1,4 @@
-#include <IsoSpec++/unity-build.cpp>
+#include <IsoSpec++/isoSpec++.h>
 #include <iostream>
 #include <fstream>
 #include <stdexcept>
@@ -109,9 +109,9 @@ public:
 uint32_t find_one(const std::span<int>& span)
 {
     auto it = std::find(span.begin(), span.end(), 1);
-    if (it != span.end()) 
+    if (it != span.end())
         return static_cast<uint32_t>(std::distance(span.begin(), it));
-    else 
+    else
         throw std::runtime_error("No '1' found in the span. This shouldn't happen.");
 }
 
