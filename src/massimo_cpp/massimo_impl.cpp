@@ -163,9 +163,9 @@ void worker(std::atomic<size_t> &n_processed,
             ClusterIds.push_back(static_cast<uint32_t>(index));
             intensity.push_back(curr_intensity);
             generator.get_conf_signature(configuration.get());
-            frame_indices.push_back(find_one(std::span<int>(configuration.get(), input.frame_indices.size())));
-            scan_indices.push_back(find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size())));
-            tof_indices.push_back(find_one(std::span<int>(configuration.get() + input.frame_indices.size() + input.scan_indices.size(), input.tof_indices.size())));
+            frame_indices.push_back(input.frame_indices[find_one(std::span<int>(configuration.get(), input.frame_indices.size()))]);
+            scan_indices.push_back(input.scan_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size()))]);
+            tof_indices.push_back(input.tof_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size() + input.scan_indices.size(), input.tof_indices.size()))]);
         }
         // Write results to the output file
         {
