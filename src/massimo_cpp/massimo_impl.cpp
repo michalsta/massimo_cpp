@@ -15,8 +15,8 @@
 #include <cstdint>
 #include <cmath>
 #include <filesystem>
-
-
+#include <optional>
+#include <random>
 
 
 
@@ -32,6 +32,7 @@ public:
     const std::vector<double> scan_probs;
     const std::vector<size_t> tof_indices;
     const std::vector<double> tof_probs;
+    std::optional<uint_fast32_t> seed;
     // Constructor to initialize the class with the provided parameters
     // Using initializer list for better performance and clarity
     ProblematicInput(size_t N,
@@ -45,7 +46,7 @@ public:
                       std::vector<double> const &tof_probs)
         : N(N), N_minimal(N_minimal), precision(precision), frame_indices(frame_indices), frame_probs(frame_probs),
           scan_indices(scan_indices), scan_probs(scan_probs),
-          tof_indices(tof_indices), tof_probs(tof_probs)
+          tof_indices(tof_indices), tof_probs(tof_probs), seed(std::nullopt)
         {
             if (frame_indices.size() != frame_probs.size() ||
                 scan_indices.size() != scan_probs.size() ||
@@ -103,6 +104,14 @@ public:
         result += "})";
         return result;
     }
+
+    void set_seed(uint_fast32_t new_seed) {
+        seed = new_seed;
+    }
+
+    std::optional<uint_fast32_t> get_seed() const {
+        return seed;
+    }
 };
 
 
@@ -122,6 +131,8 @@ void worker(std::atomic<size_t> &n_processed,
             size_t thread_id,
             double beta_bias)
 {
+    std::mt19937 rng(std::random_device{}());
+
     while(n_processed < inputs.size())
     {
         size_t index = n_processed.fetch_add(1);
@@ -129,6 +140,10 @@ void worker(std::atomic<size_t> &n_processed,
             break; // No more inputs to process
 
         const ProblematicInput &input = inputs[index];
+
+        if(input.get_seed().has_value())
+            rng.seed(input.get_seed().value());
+
         std::array<int, 3> isotopeNumbers = {(int)input.frame_indices.size(), (int)input.scan_indices.size(), (int)input.tof_indices.size()};
         std::array<int, 3> atomCounts = {1,1,1};
         std::array<double*, 3> isotopeMasses = {
@@ -184,8 +199,18 @@ void worker(std::atomic<size_t> &n_processed,
     }
 }
 
-void Massimize(const std::vector<ProblematicInput> &inputs, const std::string &output_dir_path, size_t n_threads, double beta_bias = 5.0)
+//template<typename StochasticGeneratorBackend>
+void Massimize(std::vector<ProblematicInput> &inputs, const std::string &output_dir_path, size_t n_threads, double beta_bias = 5.0, std::optional<uint_fast32_t> seed = std::nullopt)
 {
+    std::mt19937 rng;
+    if (seed.has_value())
+        rng.seed(seed.value());
+    else
+        rng.seed(std::random_device{}());
+
+    for(auto &input : inputs)
+        input.set_seed(rng());
+
     std::filesystem::path output_dir(output_dir_path);
     std::filesystem::create_directory(output_dir);
     {
