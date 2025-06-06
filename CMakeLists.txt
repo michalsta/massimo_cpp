@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
+if((APPLE))
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -undefined dynamic_lookup")
+endif((APPLE))
+
 
 execute_process(
     COMMAND python -m IsoSpecPy --libpath
