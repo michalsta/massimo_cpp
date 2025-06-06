@@ -199,7 +199,7 @@ void worker(std::atomic<size_t> &n_processed,
     }
 }
 
-//template<typename StochasticGeneratorBackend>
+template<typename StochasticGeneratorBackend>
 void Massimize(std::vector<ProblematicInput> &inputs, const std::string &output_dir_path, size_t n_threads, double beta_bias = 5.0, std::optional<uint_fast32_t> seed = std::nullopt)
 {
     std::mt19937 rng;
