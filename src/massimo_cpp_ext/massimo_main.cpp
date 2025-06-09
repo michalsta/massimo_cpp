@@ -4,7 +4,7 @@
 #include <nanobind/stl/optional.h>
 
 //#include <IsoSpec++/isoSpec++.h>
-#include "massimo_cpp/massimo_impl.cpp"
+#include "massimo_impl.cpp"
 
 
 namespace nb = nanobind;

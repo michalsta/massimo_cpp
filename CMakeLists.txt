@@ -26,7 +26,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 nanobind_add_module(massimo_cpp_ext
 SHARED NOMINSIZE
-src/massimo_main.cpp)
+src/massimo_cpp_ext/massimo_main.cpp)
 
 target_include_directories(massimo_cpp_ext
 PRIVATE
