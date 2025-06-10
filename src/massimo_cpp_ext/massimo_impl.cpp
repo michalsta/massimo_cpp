@@ -124,6 +124,7 @@ uint32_t find_one(const std::span<int>& span)
         throw std::runtime_error("No '1' found in the span. This shouldn't happen.");
 }
 
+template<typename StochasticGeneratorBackend>
 void worker(std::atomic<size_t> &n_processed,
             const std::vector<ProblematicInput> &inputs,
             std::mutex &out_file_lock,
@@ -156,10 +157,15 @@ void worker(std::atomic<size_t> &n_processed,
             input.scan_probs.data(),
             input.tof_probs.data()
         };
-        std::unique_ptr<int[]> configuration = std::make_unique<int[]>(input.frame_indices.size() + input.scan_indices.size() + input.tof_indices.size());
+
+        constexpr bool compact_confs = std::is_same<StochasticGeneratorBackend, IsoSpec::IsoOrderedGeneratorTemplate<IsoSpec::SingleAtomMarginal<false>>>::value ||
+                                        std::is_same<StochasticGeneratorBackend, IsoSpec::IsoLayeredGeneratorTemplate<IsoSpec::SingleAtomMarginal<true>>>::value;
+
+        const size_t conf_size = compact_confs ? 3 : input.frame_indices.size() + input.scan_indices.size() + input.tof_indices.size();
+        std::unique_ptr<int[]> configuration = std::make_unique<int[]>(conf_size);
 
         IsoSpec::Iso iso(3, isotopeNumbers.data(), atomCounts.data(), isotopeMasses.data(), isotopeProbabilities.data());
-        IsoSpec::IsoStochasticGenerator generator(std::move(iso), input.N, input.precision, beta_bias);
+        IsoSpec::IsoStochasticGeneratorTemplate<StochasticGeneratorBackend> generator(std::move(iso), input.N, input.precision, beta_bias);
 
 
         // TODO: we can replace std::vector here by preallocated memory of size N
@@ -177,10 +183,17 @@ void worker(std::atomic<size_t> &n_processed,
                 continue;
             ClusterIds.push_back(static_cast<uint32_t>(index));
             intensity.push_back(curr_intensity);
-            generator.get_conf_signature(configuration.get());
-            frame_indices.push_back(input.frame_indices[find_one(std::span<int>(configuration.get(), input.frame_indices.size()))]);
-            scan_indices.push_back(input.scan_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size()))]);
-            tof_indices.push_back(input.tof_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size() + input.scan_indices.size(), input.tof_indices.size()))]);
+            if constexpr (compact_confs) {
+                generator.get_indexes(configuration.get());
+                frame_indices.push_back(static_cast<uint32_t>(configuration[0]));
+                scan_indices.push_back(static_cast<uint32_t>(configuration[1]));
+                tof_indices.push_back(static_cast<uint32_t>(configuration[2]));
+            } else {
+                generator.get_conf_signature(configuration.get());
+                frame_indices.push_back(input.frame_indices[find_one(std::span<int>(configuration.get(), input.frame_indices.size()))]);
+                scan_indices.push_back(input.scan_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size()))]);
+                tof_indices.push_back(input.tof_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size() + input.scan_indices.size(), input.tof_indices.size()))]);
+            }
         }
         // Write results to the output file
         {
@@ -235,13 +248,13 @@ void Massimize(std::vector<ProblematicInput> &inputs, const std::string &output_
     std::vector<std::thread> threads;
 
     if(n_threads == 0) {
-        worker(n_processed, inputs, out_file_lock, out_files, 0, beta_bias);
+        worker<StochasticGeneratorBackend>(n_processed, inputs, out_file_lock, out_files, 0, beta_bias);
         return;
     }
 
 
     for(size_t ii = 0; ii < n_threads; ++ii) {
-        threads.emplace_back(worker, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii, beta_bias);
+        threads.emplace_back(worker<StochasticGeneratorBackend>, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii, beta_bias);
     }
 
     for(auto &thread : threads) {
