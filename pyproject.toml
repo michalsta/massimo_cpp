@@ -1,11 +1,11 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind", "IsoSpecPy>=2.3.0dev1"]
+requires = ["scikit-build-core", "nanobind", "IsoSpecPy @ git+https://github.com/MatteoLacki/IsoSpec.git@4514ff720ac7c7b173d70bfe1fafb7c53b1c4b84"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "massimo_cpp"
 version = "0.0.1"
 dependencies = [
-    "IsoSpecPy>=2.3.0dev1",
+    "IsoSpecPy @ git+https://github.com/MatteoLacki/IsoSpec.git@4514ff720ac7c7b173d70bfe1fafb7c53b1c4b84",
     "cffi"
 ]
