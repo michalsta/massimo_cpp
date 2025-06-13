@@ -26,7 +26,7 @@ def test_1():
     )
 
     shutil.rmtree(r"test1.mappet", ignore_errors=True)
-    massimo_cpp.Massimize([PI], r"test1.mmappet", 1, iso_backend="ordered")
+    massimo_cpp.Massimize([PI], r"test1.mmappet", 1, iso_backend="single_layered")
 
     ds = open_dataset(r"test1.mmappet")
     print(ds)
