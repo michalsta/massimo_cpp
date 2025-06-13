@@ -19,6 +19,10 @@ void Massimize_(std::vector<ProblematicInput> &inputs, const std::string &output
         Massimize<IsoSpec::IsoLayeredGeneratorTemplate<IsoSpec::LayeredMarginal>>(inputs, output_dir_path, n_threads, beta_bias, seed);
     } else if(iso_backend == "ordered") {
         Massimize<IsoSpec::IsoOrderedGenerator>(inputs, output_dir_path, n_threads, beta_bias, seed);
+    } else if(iso_backend == "single_layered") {
+        Massimize<IsoSpec::IsoLayeredGeneratorTemplate<IsoSpec::SingleAtomMarginal<true>>>(inputs, output_dir_path, n_threads, beta_bias, seed);
+    } else if(iso_backend == "single_ordered") {
+        Massimize<IsoSpec::IsoOrderedGeneratorTemplate<IsoSpec::SingleAtomMarginal<false>>>(inputs, output_dir_path, n_threads, beta_bias, seed);
     } else {
         throw std::invalid_argument("Unsupported IsoSpec backend");
     }
