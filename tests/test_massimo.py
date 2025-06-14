@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import massimo_cpp
-from mmapped_df import open_dataset
+from mmappet import open_dataset
 import numpy as np
 import shutil
 
