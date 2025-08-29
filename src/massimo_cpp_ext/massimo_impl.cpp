@@ -165,7 +165,7 @@ void worker(std::atomic<size_t> &n_processed,
         std::unique_ptr<int[]> configuration = std::make_unique<int[]>(conf_size);
 
         IsoSpec::Iso iso(3, isotopeNumbers.data(), atomCounts.data(), isotopeMasses.data(), isotopeProbabilities.data());
-        IsoSpec::IsoStochasticGeneratorTemplate<StochasticGeneratorBackend> generator(std::move(iso), input.N, input.precision, beta_bias);
+        IsoSpec::IsoStochasticGeneratorTemplate<StochasticGeneratorBackend> generator(std::move(iso), input.N, input.precision, beta_bias, rng);
 
 
         // TODO: we can replace std::vector here by preallocated memory of size N
