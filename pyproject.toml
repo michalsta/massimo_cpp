@@ -1,12 +1,12 @@
 [build-system]
-requires = ["scikit-build-core", "nanobind", "IsoSpecPy @ git+https://github.com/MatteoLacki/IsoSpec.git@123171f005321baaa11ce4db3dc831bcb38ba43c"]
+requires = ["scikit-build-core", "nanobind", "IsoSpecPy>=2.3.0dev4"]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "massimo_cpp"
 version = "0.0.1"
 dependencies = [
-    "IsoSpecPy @ git+https://github.com/MatteoLacki/IsoSpec.git@123171f005321baaa11ce4db3dc831bcb38ba43c",
+    "IsoSpecPy>=2.3.0dev4",
     "mmappet @ git+https://github.com/michalsta/mmappet.git",
     "cffi"
 ]
