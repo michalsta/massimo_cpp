@@ -1,7 +1,11 @@
 # %pip install pandas
 # %pip install mmappet
+# %pip install tqdm
 import massimo_cpp
+import numpy as np
 import pandas as pd
+
+from tqdm import tqdm
 
 import multiprocessing as mp
 import numpy as np
@@ -70,7 +74,8 @@ def write_clusters_to_mmappet(
     )
 
 
-with open("/tmp/repro.pkl", "rb") as f:
+# with open("/tmp/repro.pkl", "rb") as f:
+with open("../repro.pkl", "rb") as f:
     precursor_frame_marginals, precursor_tof_marginals, ions = pickle.load(f)
 
 minimal_intensity = 9
@@ -103,5 +108,14 @@ write_clusters_to_mmappet(
 
 df = open_dataset(precursors_output_path1)
 df2 = open_dataset(precursors_output_path2)
-df
-df2
+print(df)
+print(df2)
+
+A = df.to_numpy()
+B = df2.to_numpy()
+np.testing.assert_equal(A, B)
+
+
+assert len(A) == len(B)
+for i in tqdm(range(len(A))):
+    assert all(A[i] == B[i])
