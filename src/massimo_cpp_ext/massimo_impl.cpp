@@ -233,9 +233,12 @@ void worker(std::atomic<size_t> &n_processed,
         }
 
         std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
-            if (frame_indices[a] < frame_indices[b]) return true;
-            if (scan_indices[a] < scan_indices[b]) return true;
-            if (tof_indices[a] < tof_indices[b]) return true;
+            if (frame_indices[a] != frame_indices[b])
+                return frame_indices[a] < frame_indices[b];
+            if (scan_indices[a] != scan_indices[b])
+                return scan_indices[a] < scan_indices[b];
+            if (tof_indices[a] != tof_indices[b])
+                return tof_indices[a] < tof_indices[b];
             return false;
         });
 
@@ -291,7 +294,7 @@ void Massimize(std::vector<ProblematicInput> &inputs, const std::string &output_
         out_files[ii].open(output_dir / (std::to_string(ii) + ".bin"), std::ios::binary);
     }
 
-    SynchronizedBuffer<std::unique_ptr<ProblematicOutput>> out_files_buffer(n_threads * 3); // TODO: tune the buffer size
+    SynchronizedBuffer<std::unique_ptr<ProblematicOutput>> out_files_buffer(n_threads * 3 + 10); // TODO: tune the buffer size
     std::atomic<size_t> n_processed(0);
     std::vector<std::thread> threads;
     std::thread writer(writer_thread, std::ref(out_files), std::ref(out_files_buffer));
