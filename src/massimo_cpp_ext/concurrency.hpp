@@ -49,7 +49,7 @@ public:
         cv.wait(lock, [this]() { return buffer.size() < max_size || closed; });
         if (closed) throw std::runtime_error("Push to closed buffer");
         buffer.push_back(std::move(item));
-        cv.notify_all();
+        cv.notify_one();
     }
 
     // Removes and returns the front item from the buffer.
@@ -62,7 +62,7 @@ public:
         if(buffer.empty() && closed) return std::nullopt;
         T item(std::move(buffer.front()));
         buffer.pop_front();
-        cv.notify_all();
+        cv.notify_one();
         return item;
     }
 
