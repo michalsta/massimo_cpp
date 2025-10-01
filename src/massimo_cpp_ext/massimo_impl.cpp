@@ -18,7 +18,7 @@
 #include <optional>
 #include <random>
 
-
+#include "concurrency.hpp"
 
 class ProblematicInput
 {
@@ -114,6 +114,24 @@ public:
     }
 };
 
+class ProblematicOutput
+{
+public:
+    std::vector<uint32_t> ClusterIds;
+    std::vector<uint32_t> frame_indices;
+    std::vector<uint32_t> scan_indices;
+    std::vector<uint32_t> tof_indices;
+    std::vector<uint32_t> intensity;
+    ProblematicOutput() = default;
+    ProblematicOutput(const ProblematicOutput & other) = delete;
+    ProblematicOutput(ProblematicOutput && other) noexcept
+        : ClusterIds(std::move(other.ClusterIds)), frame_indices(std::move(other.frame_indices)),
+          scan_indices(std::move(other.scan_indices)), tof_indices(std::move(other.tof_indices)),
+          intensity(std::move(other.intensity)) {};
+    ProblematicOutput& operator=(const ProblematicOutput & other) = delete;
+    ProblematicOutput& operator=(ProblematicOutput && other) = delete;
+    ~ProblematicOutput() = default;
+};
 
 uint32_t find_one(const std::span<int>& span)
 {
@@ -124,11 +142,27 @@ uint32_t find_one(const std::span<int>& span)
         throw std::runtime_error("No '1' found in the span. This shouldn't happen.");
 }
 
+void writer_thread(std::array<std::ofstream, 5> &out_files,
+                   SynchronizedBuffer<std::unique_ptr<ProblematicOutput>> &output_buffer)
+{
+    while (true) {
+        auto output_opt = output_buffer.pop();
+        if (!output_opt.has_value()) {
+            break; // Buffer is closed and empty, exit the thread
+        }
+        const ProblematicOutput &output = *(output_opt.value());
+        out_files[0].write(reinterpret_cast<const char*>(output.ClusterIds.data()), output.ClusterIds.size() * sizeof(uint32_t));
+        out_files[1].write(reinterpret_cast<const char*>(output.frame_indices.data()), output.frame_indices.size() * sizeof(uint32_t));
+        out_files[2].write(reinterpret_cast<const char*>(output.scan_indices.data()), output.scan_indices.size() * sizeof(uint32_t));
+        out_files[3].write(reinterpret_cast<const char*>(output.tof_indices.data()), output.tof_indices.size() * sizeof(uint32_t));
+        out_files[4].write(reinterpret_cast<const char*>(output.intensity.data()), output.intensity.size() * sizeof(uint32_t));
+    }
+}
+
 template<typename StochasticGeneratorBackend>
 void worker(std::atomic<size_t> &n_processed,
             const std::vector<ProblematicInput> &inputs,
-            std::mutex &out_file_lock,
-            std::array<std::ofstream, 5> &out_files,
+            SynchronizedBuffer<std::unique_ptr<ProblematicOutput>> &output_buffer,
             size_t thread_id,
             double beta_bias)
 {
@@ -169,7 +203,7 @@ void worker(std::atomic<size_t> &n_processed,
 
 
         // TODO: we can replace std::vector here by preallocated memory of size N
-        std::vector<uint32_t> ClusterIds;
+        std::unique_ptr<ProblematicOutput> output = std::make_unique<ProblematicOutput>();
         std::vector<uint32_t> frame_indices;
         std::vector<uint32_t> scan_indices;
         std::vector<uint32_t> tof_indices;
@@ -182,7 +216,7 @@ void worker(std::atomic<size_t> &n_processed,
             total_confs -= curr_intensity;
             if (curr_intensity < input.N_minimal)
                 continue;
-            ClusterIds.push_back(static_cast<uint32_t>(index));
+            output->ClusterIds.push_back(static_cast<uint32_t>(index));
             intensity.push_back(curr_intensity);
             if constexpr (compact_confs) {
                 generator.get_indexes(configuration.get());
@@ -205,30 +239,21 @@ void worker(std::atomic<size_t> &n_processed,
             return false;
         });
 
-        std::vector<uint32_t> frame_indices_sorted, scan_indices_sorted, tof_indices_sorted, intensity_sorted;
-        frame_indices_sorted.reserve(frame_indices.size());
-        scan_indices_sorted.reserve(scan_indices.size());
-        tof_indices_sorted.reserve(tof_indices.size());
-        intensity_sorted.reserve(intensity.size());
+        output->frame_indices.reserve(frame_indices.size());
+        output->scan_indices.reserve(scan_indices.size());
+        output->tof_indices.reserve(tof_indices.size());
+        output->intensity.reserve(intensity.size());
 
         for (size_t idx : order) {
-            frame_indices_sorted.push_back(frame_indices[idx]);
-            scan_indices_sorted.push_back(scan_indices[idx]);
-            tof_indices_sorted.push_back(tof_indices[idx]);
-            intensity_sorted.push_back(intensity[idx]);
+            output->frame_indices.push_back(frame_indices[idx]);
+            output->scan_indices.push_back(scan_indices[idx]);
+            output->tof_indices.push_back(tof_indices[idx]);
+            output->intensity.push_back(intensity[idx]);
         }
 
-        // Write results to the output file
-        {
-            std::lock_guard<std::mutex> lock(out_file_lock);
-            //out.write(reinterpret_cast<const char*>(masses.data()), masses.size() * sizeof(double));
-            //out.write(reinterpret_cast<const char*>(probabilities.data()), probabilities.size() * sizeof(double));
-            out_files[0].write(reinterpret_cast<const char*>(ClusterIds.data()), ClusterIds.size() * sizeof(uint32_t));
-            out_files[1].write(reinterpret_cast<const char*>(frame_indices_sorted.data()), frame_indices.size() * sizeof(uint32_t));
-            out_files[2].write(reinterpret_cast<const char*>(scan_indices_sorted.data()), scan_indices.size() * sizeof(uint32_t));
-            out_files[3].write(reinterpret_cast<const char*>(tof_indices_sorted.data()), tof_indices.size() * sizeof(uint32_t));
-            out_files[4].write(reinterpret_cast<const char*>(intensity_sorted.data()), intensity.size() * sizeof(uint32_t));
-        }
+        // Push the output to the synchronized buffer
+        output_buffer.push(std::move(output));
+
         free(isotopeMasses[0]);
         free(isotopeMasses[1]);
         free(isotopeMasses[2]);
@@ -266,24 +291,29 @@ void Massimize(std::vector<ProblematicInput> &inputs, const std::string &output_
         out_files[ii].open(output_dir / (std::to_string(ii) + ".bin"), std::ios::binary);
     }
 
-    std::mutex out_file_lock;
+    SynchronizedBuffer<std::unique_ptr<ProblematicOutput>> out_files_buffer(n_threads * 3); // TODO: tune the buffer size
     std::atomic<size_t> n_processed(0);
     std::vector<std::thread> threads;
+    std::thread writer(writer_thread, std::ref(out_files), std::ref(out_files_buffer));
 
     if(n_threads == 0) {
-        worker<StochasticGeneratorBackend>(n_processed, inputs, out_file_lock, out_files, 0, beta_bias);
+        worker<StochasticGeneratorBackend>(n_processed, inputs, out_files_buffer, 0, beta_bias);
         return;
     }
 
 
     for(size_t ii = 0; ii < n_threads; ++ii) {
-        threads.emplace_back(worker<StochasticGeneratorBackend>, std::ref(n_processed), std::ref(inputs), std::ref(out_file_lock), std::ref(out_files), ii, beta_bias);
+        threads.emplace_back(worker<StochasticGeneratorBackend>, std::ref(n_processed), std::ref(inputs), std::ref(out_files_buffer), ii, beta_bias);
     }
 
     for(auto &thread : threads) {
         if (thread.joinable()) {
             thread.join();
         }
+    }
+    out_files_buffer.close();
+    if (writer.joinable()) {
+        writer.join();
     }
 }
 
