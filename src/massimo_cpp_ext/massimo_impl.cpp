@@ -174,10 +174,11 @@ void worker(std::atomic<size_t> &n_processed,
         std::vector<uint32_t> scan_indices;
         std::vector<uint32_t> tof_indices;
         std::vector<uint32_t> intensity;
+        std::vector<size_t> order;
 
         size_t total_confs = input.N;
         while (generator.advanceToNextConfiguration() and total_confs >= input.N_minimal) {
-            const size_t curr_intensity = static_cast<size_t>(generator.prob());
+            const size_t curr_intensity = generator.count();
             total_confs -= curr_intensity;
             if (curr_intensity < input.N_minimal)
                 continue;
@@ -194,17 +195,39 @@ void worker(std::atomic<size_t> &n_processed,
                 scan_indices.push_back(input.scan_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size(), input.scan_indices.size()))]);
                 tof_indices.push_back(input.tof_indices[find_one(std::span<int>(configuration.get() + input.frame_indices.size() + input.scan_indices.size(), input.tof_indices.size()))]);
             }
+            order.push_back(order.size());
         }
+
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) {
+            if (frame_indices[a] < frame_indices[b]) return true;
+            if (scan_indices[a] < scan_indices[b]) return true;
+            if (tof_indices[a] < tof_indices[b]) return true;
+            return false;
+        });
+
+        std::vector<uint32_t> frame_indices_sorted, scan_indices_sorted, tof_indices_sorted, intensity_sorted;
+        frame_indices_sorted.reserve(frame_indices.size());
+        scan_indices_sorted.reserve(scan_indices.size());
+        tof_indices_sorted.reserve(tof_indices.size());
+        intensity_sorted.reserve(intensity.size());
+
+        for (size_t idx : order) {
+            frame_indices_sorted.push_back(frame_indices[idx]);
+            scan_indices_sorted.push_back(scan_indices[idx]);
+            tof_indices_sorted.push_back(tof_indices[idx]);
+            intensity_sorted.push_back(intensity[idx]);
+        }
+
         // Write results to the output file
         {
             std::lock_guard<std::mutex> lock(out_file_lock);
             //out.write(reinterpret_cast<const char*>(masses.data()), masses.size() * sizeof(double));
             //out.write(reinterpret_cast<const char*>(probabilities.data()), probabilities.size() * sizeof(double));
             out_files[0].write(reinterpret_cast<const char*>(ClusterIds.data()), ClusterIds.size() * sizeof(uint32_t));
-            out_files[1].write(reinterpret_cast<const char*>(frame_indices.data()), frame_indices.size() * sizeof(uint32_t));
-            out_files[2].write(reinterpret_cast<const char*>(scan_indices.data()), scan_indices.size() * sizeof(uint32_t));
-            out_files[3].write(reinterpret_cast<const char*>(tof_indices.data()), tof_indices.size() * sizeof(uint32_t));
-            out_files[4].write(reinterpret_cast<const char*>(intensity.data()), intensity.size() * sizeof(uint32_t));
+            out_files[1].write(reinterpret_cast<const char*>(frame_indices_sorted.data()), frame_indices.size() * sizeof(uint32_t));
+            out_files[2].write(reinterpret_cast<const char*>(scan_indices_sorted.data()), scan_indices.size() * sizeof(uint32_t));
+            out_files[3].write(reinterpret_cast<const char*>(tof_indices_sorted.data()), tof_indices.size() * sizeof(uint32_t));
+            out_files[4].write(reinterpret_cast<const char*>(intensity_sorted.data()), intensity.size() * sizeof(uint32_t));
         }
         free(isotopeMasses[0]);
         free(isotopeMasses[1]);
