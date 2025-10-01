@@ -64,6 +64,7 @@ def write_clusters_to_mmappet(
                 *tof_marginal,
             )
         )
+
     massimo_cpp.Massimize(
         inputs=problematic_inputs,
         output_dir_path=str(output_path),
@@ -74,15 +75,14 @@ def write_clusters_to_mmappet(
     )
 
 
-# with open("/tmp/repro.pkl", "rb") as f:
-with open("../repro.pkl", "rb") as f:
+with open("/home/mist/repro.pkl", "rb") as f:
     precursor_frame_marginals, precursor_tof_marginals, ions = pickle.load(f)
 
 minimal_intensity = 9
 precision = 0.99
 
-precursors_output_path1 = "/tmp/test1.mmappet"
-precursors_output_path2 = "/tmp/test2.mmappet"
+precursors_output_path1 = ".test1.mmappet"
+precursors_output_path2 = ".test2.mmappet"
 
 shutil.rmtree(precursors_output_path1, ignore_errors=True)
 write_clusters_to_mmappet(
@@ -94,7 +94,7 @@ write_clusters_to_mmappet(
     output_path=precursors_output_path1,
     seed=1,
 )
-
+print("First done")
 shutil.rmtree(precursors_output_path2, ignore_errors=True)
 write_clusters_to_mmappet(
     frame_marginals=precursor_frame_marginals,
@@ -105,17 +105,19 @@ write_clusters_to_mmappet(
     output_path=precursors_output_path2,
     seed=1,
 )
-
+print("Second done")
 df = open_dataset(precursors_output_path1)
 df2 = open_dataset(precursors_output_path2)
-print(df)
-print(df2)
-
+#print(df)
+#print(df2)
+print("Sorting")
+df = df.sort_values(by=["ClusterID"], inplace=False, kind="stable")
+df2 = df2.sort_values(by=["ClusterID"], inplace=False, kind="stable")
 A = df.to_numpy()
 B = df2.to_numpy()
 np.testing.assert_equal(A, B)
 
-
+print("Comparing")
 assert len(A) == len(B)
 for i in tqdm(range(len(A))):
     assert all(A[i] == B[i])
