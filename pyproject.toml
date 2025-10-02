@@ -10,3 +10,11 @@ dependencies = [
     "mmappet @ git+https://github.com/michalsta/mmappet.git",
     "cffi"
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pandas",
+    "ipython",
+    "tqdm",
+    "numba",
+]

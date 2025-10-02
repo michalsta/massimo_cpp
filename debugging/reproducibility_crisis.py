@@ -1,7 +1,9 @@
 # %pip install pandas
 # %pip install mmappet
 # %pip install tqdm
+# %pip install numba
 import massimo_cpp
+import numba
 import numpy as np
 import pandas as pd
 
@@ -75,8 +77,13 @@ def write_clusters_to_mmappet(
     )
 
 
-with open("/home/mist/repro.pkl", "rb") as f:
-    precursor_frame_marginals, precursor_tof_marginals, ions = pickle.load(f)
+try:
+    with open("/home/mist/repro.pkl", "rb") as f:
+        precursor_frame_marginals, precursor_tof_marginals, ions = pickle.load(f)
+except FileNotFoundError:
+    with open("../repro.pkl", "rb") as f:
+        precursor_frame_marginals, precursor_tof_marginals, ions = pickle.load(f)
+
 
 minimal_intensity = 9
 precision = 0.99
@@ -108,8 +115,25 @@ write_clusters_to_mmappet(
 print("Second done")
 df = open_dataset(precursors_output_path1)
 df2 = open_dataset(precursors_output_path2)
-#print(df)
-#print(df2)
+
+
+@numba.njit
+def assert_strictly_increasing(xx, start=0):
+    for i, x in enumerate(xx, start):
+        if i != x:
+            return False
+    return True
+
+
+for _, d in tqdm(df.groupby("ClusterID")):
+    frame_scan_tof_order = np.lexsort((d.tof, d.scan, d.frame))
+    assert assert_strictly_increasing(frame_scan_tof_order)
+
+for _, d in tqdm(df2.groupby("ClusterID")):
+    frame_scan_tof_order = np.lexsort((d.tof, d.scan, d.frame))
+    assert assert_strictly_increasing(frame_scan_tof_order)
+
+
 print("Sorting")
 df = df.sort_values(by=["ClusterID"], inplace=False, kind="stable")
 df2 = df2.sort_values(by=["ClusterID"], inplace=False, kind="stable")
