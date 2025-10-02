@@ -1,7 +1,3 @@
-# %pip install pandas
-# %pip install mmappet
-# %pip install tqdm
-# %pip install numba
 import massimo_cpp
 import numba
 import numpy as np
